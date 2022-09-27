@@ -6,6 +6,12 @@
     <link rel="stylesheet" href="libs/leaflet/leaflet.css">
     <link rel="stylesheet" href="libs/leaflet/leaflet.draw.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@400;700&display=swap" rel="stylesheet">
+    <link href="libs/fontawesome-free-6.2.0-web/css/fontawesome.css" rel="stylesheet">
+    <link href="libs/fontawesome-free-6.2.0-web/css/brands.css" rel="stylesheet">
+    <link href="libs/fontawesome-free-6.2.0-web/css/solid.css" rel="stylesheet">
     <script src="libs/leaflet/leaflet.js" defer></script>
     <script src="libs/leaflet/leaflet.draw.js" defer></script>
     <script src="libs/turf.min.js" defer></script>
@@ -13,5 +19,16 @@
 </head>
 <body>
 <div id="map"></div>
+<div class="side-bar">
+    <button class="btn btn-close btn-red fa-regular fa-rectangle-xmark"></button>
+
+    <div class="attribute-content">
+        <div class="attribute-item">
+            <label>Name</label>
+            <input placeholder="Name" id="attribute-name" type="text" name="name">
+        </div>
+        <button id="attribute-save" class="btn btn-yellow">Save</button>
+    </div>
+</div>
 </body>
 </html>

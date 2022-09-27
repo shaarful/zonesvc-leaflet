@@ -1,4 +1,4 @@
-const map = L.map('map').setView([51.505, -0.09], 13);
+const map = L.map('map').setView([51.505, -0.09], 10);
 
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -32,9 +32,26 @@ let baseLayers = {
     "Google Terrain": googleTerrain,
 };
 
+// function onEachFeature(feature, layer) {
+//     console.log('abd');
+//     if (feature.properties) {
+//         layer.bindPopup("<b>" + feature.properties.name + "</b>" + ".");
+//     }
+// }
 
-const zone = new L.FeatureGroup();
+const zone = new L.FeatureGroup({
+    // onEachFeature: onEachFeature
+});
 const subZone = new L.FeatureGroup();
+
+const zoneUrl = 'http://api.zonesvc.techamus.co.uk/api/zones'
+
+
+let sideBar = document.querySelector(".side-bar");
+let closeBtn = document.querySelector(".side-bar .btn-close");
+let attrName = document.querySelector("#attribute-name");
+let attrSave = document.querySelector("#attribute-save");
+
 
 map.addLayer(zone);
 // map.addLayer(subZone);
@@ -69,13 +86,23 @@ let drawControl = new L.Control.Draw({
 
 map.addControl(drawControl);
 
+let drawing = null;
 
-map.on(L.Draw.Event.CREATED, function (event) {
+map.on(L.Draw.Event.CREATED, (event) => {
+    console.log('Created');
+
+    drawing = event.layer.toGeoJSON();
     zone.addLayer(event.layer);
+    sideBar.dispatchEvent(new Event('open'));
 });
 
+map.on(L.Draw.Event.EDITED, (event) => {
+    console.log("Edited");
+    console.log(event);
+})
 
-fetch('http://api.zonesvc.techamus.co.uk/api/zones', {
+
+fetch(zoneUrl, {
 // fetch('http://localhost:2020/zones', {
     method: 'GET',
     headers: {
@@ -92,8 +119,43 @@ fetch('http://api.zonesvc.techamus.co.uk/api/zones', {
 
         });
 
-    })
+    });
 
+
+closeBtn.addEventListener('click', evt => {
+    sideBar.style.transform = 'translateX(100%)';
+});
+
+sideBar.addEventListener('open', evt => {
+    sideBar.style.transform = 'none';
+})
+
+attrName.addEventListener('input', evt => {
+    if (drawing && drawing.hasOwnProperty('properties')) {
+        drawing.properties.name = evt.target.value
+    }
+})
+
+attrSave.addEventListener('click', evt => {
+    if (drawing && drawing.hasOwnProperty('properties')) {
+
+        const body = {
+            name: drawing.properties.name,
+            geoJSON: JSON.stringify(drawing)
+        }
+
+        fetch(zoneUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        }).then(res => res.json())
+            .then(data => {
+                console.log(data);
+            });
+    }
+})
 
 // const drawnPolygons = L.featureGroup();
 // const drawnLines = L.featureGroup();
