@@ -5,23 +5,19 @@ const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 const googleStreets = L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
 });
 
 const googleHybrid = L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
 });
 
 const googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
 });
 
 const googleTerrain = L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
 });
 
 let baseLayers = {
@@ -32,16 +28,8 @@ let baseLayers = {
     "Google Terrain": googleTerrain,
 };
 
-// function onEachFeature(feature, layer) {
-//     console.log('abd');
-//     if (feature.properties) {
-//         layer.bindPopup("<b>" + feature.properties.name + "</b>" + ".");
-//     }
-// }
 
-const zone = new L.FeatureGroup({
-    // onEachFeature: onEachFeature
-});
+const zone = new L.FeatureGroup();
 const subZone = new L.FeatureGroup();
 
 const zoneUrl = 'http://api.zonesvc.techamus.co.uk/api/zones'
@@ -57,8 +45,7 @@ map.addLayer(zone);
 // map.addLayer(subZone);
 
 let overLays = {
-    "Zone": zone,
-    "Sub Zone": subZone,
+    "Zone": zone, "Sub Zone": subZone,
 }
 
 
@@ -67,18 +54,11 @@ L.control.layers(baseLayers, overLays).addTo(map);
 
 let drawControl = new L.Control.Draw({
     draw: {
-        marker: false,
-        circle: false,
-        circlemarker: false,
-        rectangle: false,
-        polygon: {
-            allowIntersection: false,
-            showArea: true
+        marker: false, circle: false, circlemarker: false, rectangle: false, polygon: {
+            allowIntersection: false, showArea: true
         }
-    },
-    edit: {
-        featureGroup: zone,
-        poly: {
+    }, edit: {
+        featureGroup: zone, poly: {
             allowIntersection: false
         }
     }
@@ -94,28 +74,115 @@ map.on(L.Draw.Event.CREATED, (event) => {
     drawing = event.layer.toGeoJSON();
     zone.addLayer(event.layer);
     sideBar.dispatchEvent(new Event('open'));
+
 });
 
 map.on(L.Draw.Event.EDITED, (event) => {
     console.log("Edited");
     console.log(event);
-})
+});
+
+function getFeatureById(id) {
+    return zone.getLayers().find(layer => {
+        return (parseInt(layer.feature.properties.id) === parseInt(id));
+    });
+}
+
+function bindPropertyOnLayer(layer) {
+
+    layer.bindPopup(`
+                <form onsubmit="return modifyAttribute(event)" class="attribute-popup-content">
+                    <input readonly disabled value="${layer.feature.properties.id}" type="hidden" name="id">
+                    <div class="attribute-item">
+                        <label>Name</label>
+                        <input placeholder="Name" value="${layer.feature.properties.name}" type="text" name="name">
+                    </div>
+                    <div class="btn-container">
+                        <button onclick="deleteFeature(event, ${layer.feature.properties.id})" class="btn btn-red">Delete</button>
+                        <button type="submit" class="btn btn-yellow">Save</button>
+                    </div>
+                </form>
+            `)
+}
+
+function modifyAttribute(evt) {
+    evt.preventDefault();
+    evt.stopPropagation()
+    const id = evt.target.elements['id'].value;
+    const name = evt.target.elements['name'].value;
+
+    const layer = getFeatureById(id);
+
+    if (layer) {
+        let jsonFeature = layer.toGeoJSON();
+        jsonFeature.properties.name = name;
+        const body = {
+            id: parseInt(jsonFeature.properties.id),
+            name: jsonFeature.properties.name,
+            geoJSON: JSON.stringify(jsonFeature)
+        }
+
+
+        fetch(zoneUrl + "/" + id, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        }).then(res => {
+            if (res.ok) {
+                layer.feature.properties.name = name;
+                bindPropertyOnLayer(layer);
+                alert('Successfully Modify');
+            } else {
+                alert('Something Error');
+            }
+        });
+    }
+
+}
+
+function deleteFeature(evt, id) {
+    evt.preventDefault();
+    evt.stopPropagation();
+
+
+    if (confirm("Do you want to delete?")) {
+        fetch(zoneUrl + "/" + id, {
+            method: 'DELETE'
+        }).then(
+            res => {
+                if (res.ok) {
+                    let layer = getFeatureById(id);
+                    zone.removeLayer(layer);
+                    alert('Successfully Deleted')
+                } else {
+                    alert('Something Error')
+                }
+            }
+        )
+    }
+
+}
 
 
 fetch(zoneUrl, {
-// fetch('http://localhost:2020/zones', {
-    method: 'GET',
-    headers: {
+    method: 'GET', headers: {
         'Content-Type': 'application/json'
     },
 })
     .then(res => res.json())
     .then(data => {
         data.forEach(d => {
+            // console.log(d);
             let gJson = L.geoJSON(JSON.parse(d.geoJSON));
-            gJson.eachLayer(layer => {
-                zone.addLayer(layer);
-            })
+            const layer = gJson.getLayers()[0]
+
+            layer.feature.properties.id = d.id;
+
+            bindPropertyOnLayer(layer);
+
+            zone.addLayer(layer);
 
         });
 
@@ -140,16 +207,13 @@ attrSave.addEventListener('click', evt => {
     if (drawing && drawing.hasOwnProperty('properties')) {
 
         const body = {
-            name: drawing.properties.name,
-            geoJSON: JSON.stringify(drawing)
+            name: drawing.properties.name, geoJSON: JSON.stringify(drawing)
         }
 
         fetch(zoneUrl, {
-            method: 'POST',
-            headers: {
+            method: 'POST', headers: {
                 'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body)
+            }, body: JSON.stringify(body)
         }).then(res => res.json())
             .then(data => {
                 console.log(data);
