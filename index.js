@@ -42,6 +42,9 @@ const zoneUrl = 'http://api.zonesvc.techamus.co.uk/api/zones'
 const subZoneUrl = 'http://api.zonesvc.techamus.co.uk/api/subzones'
 
 
+let popupContent = document.querySelector("#popup-content");
+
+
 // let sideBar = document.querySelector(".side-bar");
 // let closeBtn = document.querySelector(".side-bar .btn-close");
 // let attrName = document.querySelector("#attribute-name");
@@ -79,7 +82,7 @@ let drawControl = new L.Control.Draw({
 map.addControl(drawControl);
 
 let drawing = null;
-let polygons = [];
+let polygon = null;
 let upperCutPolygon = null;
 let lowerCutPolygon = null;
 let splitLayer = null;
@@ -209,6 +212,7 @@ saveFeature = evt => {
                 layer.feature.properties.id = data.id;
                 addZonalLayer(editingLayer, layer);
                 drawing = null;
+                showPopup('Save Successfully')
 
             });
     }
@@ -255,9 +259,9 @@ function modifyAttribute(evt) {
                 layer.feature.properties.name = name;
                 jsonFeature.properties.color = color;
                 bindPropertyOnLayer(layer);
-                alert('Successfully Modify');
+                showPopup('Successfully Modify')
             } else {
-                alert('Something Error');
+                showPopup('Something Error');
             }
         });
     }
@@ -284,9 +288,9 @@ function deleteFeature(evt, id) {
                 if (res.ok) {
                     let layer = getFeatureById(id, layerGroup);
                     layerGroup.removeLayer(layer);
-                    alert('Successfully Deleted')
+                    showPopup('Successfully Deleted')
                 } else {
-                    alert('Something Error')
+                    showPopup('Something Error')
                 }
             }
         )
@@ -316,13 +320,13 @@ function splitFeature(evt, id) {
     });
 
     let geojson = layer.toGeoJSON();
-    let geom = turf.getGeom(geojson);
-    polygons.push(geom);
+    polygon = turf.getGeom(geojson);
 
     drawnPolygons.clearLayers();
     drawnLines.clearLayers();
     drawnPolygons.addLayer(layer);
     splitLayer = layer;
+
 }
 
 
@@ -407,17 +411,85 @@ fetch(subZoneUrl, {
 // }));
 
 
+function polygonCut(polygon, line) {
+    const THICK_LINE_UNITS = 'kilometers';
+    const THICK_LINE_WIDTH = 0.001;
+    let i, j, intersectPoints, lineCoords, forCut, forSelect;
+    let thickLineString, thickLinePolygon, clipped, polyg, intersect;
+    let polyCoords = [];
+    let cutPolyGeoms = [];
+    let cutFeatures = [];
+    let offsetLine = [];
+    let retVal = null;
+
+    if (((polygon.type !== 'Polygon') && (polygon.type !== 'MultiPolygon')) || (line.type !== 'LineString')) {
+        return retVal;
+    }
+
+
+    intersectPoints = turf.lineIntersect(polygon, line);
+    if (intersectPoints.features.length === 0) {
+        return retVal;
+    }
+
+    lineCoords = turf.getCoords(line);
+    if ((turf.booleanWithin(turf.point(lineCoords[0]), polygon) ||
+        (turf.booleanWithin(turf.point(lineCoords[lineCoords.length - 1]), polygon)))) {
+        return retVal;
+    }
+
+    offsetLine[0] = turf.lineOffset(line, THICK_LINE_WIDTH, {units: THICK_LINE_UNITS});
+    offsetLine[1] = turf.lineOffset(line, -THICK_LINE_WIDTH, {units: THICK_LINE_UNITS});
+
+    for (i = 0; i <= 1; i++) {
+        forCut = i;
+        forSelect = (i + 1) % 2;
+        polyCoords = [];
+        for (j = 0; j < line.coordinates.length; j++) {
+            polyCoords.push(line.coordinates[j]);
+        }
+        for (j = (offsetLine[forCut].geometry.coordinates.length - 1); j >= 0; j--) {
+            polyCoords.push(offsetLine[forCut].geometry.coordinates[j]);
+        }
+        polyCoords.push(line.coordinates[0]);
+
+        thickLineString = turf.lineString(polyCoords);
+        thickLinePolygon = turf.lineToPolygon(thickLineString);
+        clipped = turf.difference(polygon, thickLinePolygon);
+
+        cutPolyGeoms = [];
+        for (j = 0; j < clipped.geometry.coordinates.length; j++) {
+            polyg = turf.polygon(clipped.geometry.coordinates[j]);
+            intersect = turf.lineIntersect(polyg, offsetLine[forSelect]);
+            if (intersect.features.length > 0) {
+                cutPolyGeoms.push(polyg.geometry.coordinates);
+            }
+        }
+
+        cutPolyGeoms.forEach(function (geometry, index) {
+
+            cutFeatures.push(turf.polygon(geometry));
+        });
+    }
+
+    if (cutFeatures.length > 0) retVal = turf.featureCollection(cutFeatures);
+
+    return retVal;
+}
+
 function cutPolygon(polygon, line, direction, id) {
     let j;
     let polyCoords = [];
     let cutPolyGeoms = [];
     let retVal = null;
 
-    if ((polygon.type != 'Polygon') || (line.type != 'LineString')) return retVal;
+
+    if ((polygon.type !== 'Polygon') || (line.type !== 'LineString')) return retVal;
 
     let intersectPoints = turf.lineIntersect(polygon, line);
     let nPoints = intersectPoints.features.length;
-    if ((nPoints == 0) || ((nPoints % 2) != 0)) return retVal;
+
+    if ((nPoints === 0) || ((nPoints % 2) !== 0)) return retVal;
 
     let offsetLine = turf.lineOffset(line, (0.01 * direction), {units: 'kilometers'});
 
@@ -435,12 +507,18 @@ function cutPolygon(polygon, line, direction, id) {
     for (j = 0; j < clipped.geometry.coordinates.length; j++) {
         let polyg = turf.polygon(clipped.geometry.coordinates[j]);
         let overlap = turf.lineOverlap(polyg, line, {tolerance: 0.005});
+        // console.log(overlap, polyg, line);
         if (overlap.features.length > 0) {
             cutPolyGeoms.push(polyg.geometry.coordinates);
         }
     }
+    // L.geoJSON(clipped, {
+    //     style: function (feature) {
+    //         return {color: 'red'};
+    //     }
+    // }).addTo(map)
 
-    if (cutPolyGeoms.length == 1)
+    if (cutPolyGeoms.length === 1)
         retVal = turf.polygon(cutPolyGeoms[0], {id: id});
     else if (cutPolyGeoms.length > 1) {
         retVal = turf.multiPolygon(cutPolyGeoms, {id: id});
@@ -449,6 +527,9 @@ function cutPolygon(polygon, line, direction, id) {
     return retVal;
 }
 
+map.on(L.Draw.Event.DRAWSTART, function (event) {
+    drawnLines.clearLayers();
+})
 
 map.on(L.Draw.Event.CREATED, function (event) {
 
@@ -473,20 +554,28 @@ map.on(L.Draw.Event.CREATED, function (event) {
         // sideBar.dispatchEvent(new Event('open'));
 
     } else if (geom.type === 'LineString') {
-        let line = geom;
-        let isDelete = confirm('Do you want to delete original polygon?');
-        if (isDelete) {
-            deleteFeature(splitEvent, splitLayer.feature.properties.id)
-        }
-        splitLayer = null;
-        drawnLines.addLayer(layer);
-        drawnPolygons.clearLayers();
-        polygons.forEach(function (polygon, index) {
+        if (polygon && splitLayer) {
+            let line = geom;
+            let isDelete = confirm('Do you want to delete original polygon?');
+            if (isDelete) {
+                deleteFeature(splitEvent, splitLayer.feature.properties.id)
+            }
+
+            drawnLines.addLayer(event.layer);
+            drawnPolygons.clearLayers();
+
             let layer;
-            let upperCut = cutPolygon(polygon, line, 1, 'upper');
-            let lowerCut = cutPolygon(polygon, line, -1, 'lower');
-            if ((upperCut != null) && (lowerCut != null)) {
-                layer = L.geoJSON(upperCut, {
+
+            let cut = polygonCut(polygon, line)
+            // console.log(cutp);
+            //
+            // let upperCut = cutPolygon(polygon, line, 1, 'upper');
+            // let lowerCut = cutPolygon(polygon, line, -1, 'lower');
+            // console.log(upperCut, lowerCut);
+            // if ((upperCut != null) && (lowerCut != null)) {
+            if (cut && cut.features.length > 1) {
+                let cutFeatures = cut.features;
+                layer = L.geoJSON(cutFeatures[0], {
                     style: function (feature) {
                         return {color: 'green'};
                     }
@@ -495,7 +584,7 @@ map.on(L.Draw.Event.CREATED, function (event) {
                 upperCutPolygon = layer;
                 drawnPolygons.addLayer(layer);
 
-                layer = L.geoJSON(lowerCut, {
+                layer = L.geoJSON(cutFeatures[1], {
                     style: function (feature) {
                         return {color: 'yellow'};
                     }
@@ -503,12 +592,16 @@ map.on(L.Draw.Event.CREATED, function (event) {
                 bindPopupForSave(layer, 'lowerCut');
                 lowerCutPolygon = layer;
                 drawnPolygons.addLayer(layer);
+                polygon = null;
+                splitLayer = null;
                 drawnLines.clearLayers();
-
+            } else {
+                drawnPolygons.addLayer(splitLayer);
             }
 
-        });
-
+        } else {
+            showPopup('Please select a layer for split!')
+        }
     }
 });
 
@@ -526,7 +619,6 @@ map.on(L.Draw.Event.CREATED, function (event) {
 
 function onWorkingLayerChange(evt) {
     map.removeControl(drawControl);
-    console.log(evt.target.value);
     if (evt.target.value === 'zone') {
         editingLayer = zone;
         editingLayerUrl = zoneUrl;
@@ -576,4 +668,16 @@ function addZonalLayer(featureGroup, layer) {
     }
     bindPropertyOnLayer(layer);
     featureGroup.addLayer(layer);
+}
+
+function showPopup(message, timeout = 1500) {
+    popupContent.innerText = message;
+    popupContent.parentNode.classList.remove('hover-out');
+    setTimeout(() => {
+        popupContent.parentNode.classList.add('hover-out');
+    }, timeout)
+}
+
+function closePopup() {
+    popupContent.parentNode.classList.remove('hover-out');
 }

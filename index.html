@@ -5,7 +5,7 @@
     <title>Zonesvc</title>
     <link rel="stylesheet" href="libs/leaflet/leaflet.css">
     <link rel="stylesheet" href="libs/leaflet/leaflet.draw.css">
-<!--    <link rel="stylesheet" href="libs/leaflet/leaflet.label.css">-->
+    <!--    <link rel="stylesheet" href="libs/leaflet/leaflet.label.css">-->
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,36 +15,43 @@
     <link href="libs/fontawesome-free-6.2.0-web/css/solid.css" rel="stylesheet">
     <script src="libs/leaflet/leaflet.js" defer></script>
     <script src="libs/leaflet/leaflet.draw.js" defer></script>
-<!--    <script src="libs/leaflet/leaflet.label.js" defer></script>-->
+    <!--    <script src="libs/leaflet/leaflet.label.js" defer></script>-->
     <script src="libs/turf.min.js" defer></script>
     <script src="index.js" defer></script>
 </head>
 <body>
 <div id="map"></div>
-<div class="side-bar">
-    <button class="btn btn-close btn-red fa-regular fa-rectangle-xmark"></button>
+<!--<div class="side-bar">-->
+<!--    <button class="btn btn-close btn-red fa-regular fa-rectangle-xmark"></button>-->
 
-    <div class="attribute-content">
-        <div class="attribute-item">
-            <label>Name</label>
-            <input placeholder="Name" id="attribute-name" type="text" name="name">
-        </div>
-        <button id="attribute-save" class="btn btn-yellow">Save</button>
-    </div>
-</div>
+<!--    <div class="attribute-content">-->
+<!--        <div class="attribute-item">-->
+<!--            <label>Name</label>-->
+<!--            <input placeholder="Name" id="attribute-name" type="text" name="name">-->
+<!--        </div>-->
+<!--        <button id="attribute-save" class="btn btn-yellow">Save</button>-->
+<!--    </div>-->
+<!--</div>-->
 
 <div class="working-layer">
     <div>Working layer</div>
     <form name="workLayerForm">
         <label>
-            <input id="zoneInput" checked onchange="onWorkingLayerChange(event)" name="editingLayer" value="zone" type="radio">
+            <input id="zoneInput" checked onchange="onWorkingLayerChange(event)" name="editingLayer" value="zone"
+                   type="radio">
             Zone
         </label>
         <label>
-            <input id="subZoneInput" onchange="onWorkingLayerChange(event)" name="editingLayer" value="subZone" type="radio">
+            <input id="subZoneInput" onchange="onWorkingLayerChange(event)" name="editingLayer" value="subZone"
+                   type="radio">
             SubZone
         </label>
     </form>
+</div>
+
+<div id="popup" class="hover-out">
+    <div id="popup-content"></div>
+    <button onclick="closePopup()" class="btn btn-close btn-red fa-regular fa-rectangle-xmark"></button>
 </div>
 </body>
 </html>

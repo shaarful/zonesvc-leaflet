@@ -138,3 +138,25 @@ html, body {
     color: black;
     padding: 2px 4px;
 }
+
+#popup {
+    z-index: 1001;
+    position: absolute;
+    background-color: white;
+    color: #373e98;
+    /*left: 50%;*/
+    right: 2rem;
+    top: .5rem;
+    /*transform: translateX(-50%);*/
+    display: flex;
+    border-radius: 5px;
+    transition: transform 500ms;
+}
+
+#popup #popup-content {
+    padding: .35rem .75rem;
+}
+
+#popup.hover-out{
+    transform: translateY(-150%);
+}
