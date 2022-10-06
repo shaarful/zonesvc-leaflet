@@ -145,15 +145,17 @@ function bindPropertyOnLayer(layer) {
             `)
 }
 
-function bindPopupForSave(layer, cutPoly = false) {
+function bindPopupForSave(layer, cutPoly = false, parentZoneId = -1) {
+
     layer.bindPopup(`
-                <form data-cut-poly="${cutPoly}" onsubmit="return saveFeature(event)" class="attribute-popup-content">
+                <form data-cut-poly="${cutPoly}" data-parent-zone-id="${parentZoneId}"
+                onsubmit="return saveFeature(event)" class="attribute-popup-content">
                     <div class="attribute-item">
                         <label>Name</label>
                         <input placeholder="Name" value="" type="text" name="name">
                     </div>
                       <div class="attribute-item">
-                        <label>color</label>
+                        <label>Color</label>
                         <input  value="#0F52BA" type="color" name="color">
                       </div>
                     <div class="btn-container">
@@ -167,6 +169,9 @@ saveFeature = evt => {
     evt.preventDefault();
     evt.stopPropagation();
     let cutPoly = evt.target.dataset['cutPoly'];
+    let parentZoneId = parseInt(evt.target.dataset['parentZoneId']);
+    console.log(parentZoneId);
+
     if ((drawing && drawing.hasOwnProperty('properties')) || upperCutPolygon || lowerCutPolygon) {
         const name = evt.target.elements['name'].value || '';
         const color = evt.target.elements['color'].value || "#0F52BA";
@@ -180,14 +185,17 @@ saveFeature = evt => {
         } else if (cutPoly === 'upperCut' && upperCutPolygon) {
             upperCutPolygon.feature.properties.name = name;
             upperCutPolygon.feature.properties.color = color;
+            upperCutPolygon.feature.properties.parentId = parentZoneId;
+
             body = {
-                name, geoJSON: JSON.stringify(upperCutPolygon.feature)
+                name, parentZoneId, geoJSON: JSON.stringify(upperCutPolygon.feature)
             }
         } else if (cutPoly === 'lowerCut' && lowerCutPolygon) {
             lowerCutPolygon.feature.properties.name = name;
             lowerCutPolygon.feature.properties.color = color;
+            lowerCutPolygon.feature.properties.parentZoneId = parentZoneId;
             body = {
-                name, geoJSON: JSON.stringify(lowerCutPolygon.feature)
+                name, parentZoneId, geoJSON: JSON.stringify(lowerCutPolygon.feature)
             }
         }
 
@@ -532,7 +540,6 @@ map.on(L.Draw.Event.DRAWSTART, function (event) {
 })
 
 map.on(L.Draw.Event.CREATED, function (event) {
-
     let layer = event.layer;
     let geojson = layer.toGeoJSON();
     let geom = turf.getGeom(geojson);
@@ -554,12 +561,13 @@ map.on(L.Draw.Event.CREATED, function (event) {
         // sideBar.dispatchEvent(new Event('open'));
 
     } else if (geom.type === 'LineString') {
+
         if (polygon && splitLayer) {
             let line = geom;
-            let isDelete = confirm('Do you want to delete original polygon?');
-            if (isDelete) {
-                deleteFeature(splitEvent, splitLayer.feature.properties.id)
-            }
+            // let isDelete = confirm('Do you want to delete original polygon?');
+            // if (isDelete) {
+            //     deleteFeature(splitEvent, splitLayer.feature.properties.id)
+            // }
 
             drawnLines.addLayer(event.layer);
             drawnPolygons.clearLayers();
@@ -580,7 +588,8 @@ map.on(L.Draw.Event.CREATED, function (event) {
                         return {color: 'green'};
                     }
                 }).getLayers()[0];
-                bindPopupForSave(layer, 'upperCut');
+
+                bindPopupForSave(layer, 'upperCut', splitLayer.feature.properties.id);
                 upperCutPolygon = layer;
                 drawnPolygons.addLayer(layer);
 
@@ -589,11 +598,12 @@ map.on(L.Draw.Event.CREATED, function (event) {
                         return {color: 'yellow'};
                     }
                 }).getLayers()[0];
-                bindPopupForSave(layer, 'lowerCut');
+                bindPopupForSave(layer, 'lowerCut', splitLayer.feature.properties.id);
                 lowerCutPolygon = layer;
                 drawnPolygons.addLayer(layer);
                 polygon = null;
                 splitLayer = null;
+
                 drawnLines.clearLayers();
             } else {
                 drawnPolygons.addLayer(splitLayer);
