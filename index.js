@@ -122,7 +122,8 @@ function bindPropertyOnLayer(layer) {
     });
     const name = layer.feature.properties.name || '';
     layer.bindPopup(`
-                <form onsubmit="return modifyAttribute(event)" data-layer="${layer.featureGroup}" data-url="${layer.url}"
+                <form onsubmit="return modifyAttribute(event)"
+                 data-layer="${layer.featureGroup}" data-url="${layer.url}"
                  class="attribute-popup-content">
                     <input readonly disabled value="${layer.feature.properties.id}" type="hidden" name="id">
                     <div class="attribute-item">
@@ -323,16 +324,23 @@ function splitFeature(evt, id) {
     const layer = getFeatureById(id, layerGroup);
 
     layer.closePopup();
-    layer.setStyle({
-        color: '#b428de'
-    });
+    // layer.setStyle({
+    //     color: '#b428de'
+    // });
 
     let geojson = layer.toGeoJSON();
     polygon = turf.getGeom(geojson);
 
+    let gJson = L.geoJSON(geojson);
+    const newLayer = gJson.getLayers()[0]
+
+    newLayer.setStyle({
+        color: '#b428de'
+    });
+
     drawnPolygons.clearLayers();
     drawnLines.clearLayers();
-    drawnPolygons.addLayer(layer);
+    drawnPolygons.addLayer(newLayer);
     splitLayer = layer;
 
 }
@@ -602,9 +610,10 @@ map.on(L.Draw.Event.CREATED, function (event) {
                 lowerCutPolygon = layer;
                 drawnPolygons.addLayer(layer);
                 polygon = null;
-                splitLayer = null;
 
+                splitLayer = null;
                 drawnLines.clearLayers();
+
             } else {
                 drawnPolygons.addLayer(splitLayer);
             }
