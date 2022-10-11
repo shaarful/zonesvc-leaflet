@@ -171,7 +171,7 @@ saveFeature = evt => {
     evt.stopPropagation();
     let cutPoly = evt.target.dataset['cutPoly'];
     let parentZoneId = parseInt(evt.target.dataset['parentZoneId']);
-    console.log(parentZoneId);
+    // console.log(parentZoneId);
 
     if ((drawing && drawing.hasOwnProperty('properties')) || upperCutPolygon || lowerCutPolygon) {
         const name = evt.target.elements['name'].value || '';
@@ -210,9 +210,11 @@ saveFeature = evt => {
                     drawnPolygons.clearLayers();
                 } else if (cutPoly === 'upperCut') {
                     upperCutPolygon.closePopup();
+                    drawnPolygons.removeLayer(upperCutPolygon);
                     upperCutPolygon = null;
                 } else if (cutPoly === 'lowerCut') {
                     lowerCutPolygon.closePopup();
+                    drawnPolygons.removeLayer(lowerCutPolygon);
                     lowerCutPolygon = null;
                 }
 
