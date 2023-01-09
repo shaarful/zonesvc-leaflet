@@ -87,6 +87,7 @@ let upperCutPolygon = null;
 let lowerCutPolygon = null;
 let splitLayer = null;
 let splitEvent = null;
+let isLinkActive = false;
 
 
 // map.on(L.Draw.Event.CREATED, (event) => {
@@ -140,6 +141,8 @@ function bindPropertyOnLayer(layer) {
                         type="button" onclick="deleteFeature(event, ${layer.feature.properties.id})" class="btn btn-red">Delete</button>
                         <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
                         type="button" onclick="splitFeature(event, ${layer.feature.properties.id})" class="btn btn-blue">Split</button>
+                        <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
+                        type="button" onclick="linkFeature(event, ${layer.feature.properties.id})" class="btn btn-green">Link</button>
                         <button type="submit" class="btn btn-yellow">Save</button>
                     </div>
                 </form>
@@ -147,7 +150,6 @@ function bindPropertyOnLayer(layer) {
 }
 
 function bindPopupForSave(layer, cutPoly = false, parentZoneId = -1) {
-
     layer.bindPopup(`
                 <form data-cut-poly="${cutPoly}" data-parent-zone-id="${parentZoneId}"
                 onsubmit="return saveFeature(event)" class="attribute-popup-content">
@@ -309,7 +311,6 @@ function deleteFeature(evt, id) {
 
 }
 
-
 function splitFeature(evt, id) {
     splitEvent = evt;
     const subZonInput = document.querySelector('#subZoneInput');
@@ -347,6 +348,34 @@ function splitFeature(evt, id) {
 
 }
 
+function linkFeature(evt, id) {
+    const layer = getFeatureById(id, zone);
+
+    let origin = layer.getBounds().getCenter();
+
+    zone.getLayers().forEach(destination => {
+        // console.log(destination.options.color);
+        let swoopy = L.swoopyArrow(origin, destination.getBounds().getCenter(), {
+            labelFontSize: 30,
+            iconAnchor: [20, 10],
+            iconSize: [5, 5],
+            factor: 0,
+            color: destination.options.color,
+            weight: 2,
+            arrowFilled: true
+        }).addTo(map);
+        // swoopy.bindTooltip('afda sdfa', {
+        //     permanent: true,
+        //     direction: "center",
+        //     opacity: 1,
+        //     className: 'label-tooltip'
+        // });
+        swoopy.bindPopup(`<div>fadfa fadsf daf</div>`)
+        console.log(swoopy);
+    });
+
+
+}
 
 fetch(zoneUrl, {
     method: 'GET', headers: {
@@ -547,7 +576,7 @@ function cutPolygon(polygon, line, direction, id) {
 
 map.on(L.Draw.Event.DRAWSTART, function (event) {
     drawnLines.clearLayers();
-})
+});
 
 map.on(L.Draw.Event.CREATED, function (event) {
     let layer = event.layer;
@@ -643,9 +672,13 @@ function onWorkingLayerChange(evt) {
     if (evt.target.value === 'zone') {
         editingLayer = zone;
         editingLayerUrl = zoneUrl;
-    } else {
+        isLinkActive = false;
+    } else if (evt.target.value === 'subZone') {
         editingLayer = subZone;
         editingLayerUrl = subZoneUrl;
+        isLinkActive = false;
+    } else if (evt.target.value === 'link') {
+        isLinkActive = true;
     }
     reInitiateDraw();
 

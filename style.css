@@ -39,6 +39,17 @@ html, body {
     background-color: var(--darkest-gray);
 }
 
+.btn-green {
+    background-color: darkgreen;
+    color: white;
+}
+
+
+.btn-green:hover {
+    background-color: green;
+}
+
+
 .btn-yellow {
     background-color: var(--shocking-yellow);
     color: black;
