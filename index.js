@@ -31,6 +31,7 @@ let baseLayers = {
 
 const zone = new L.FeatureGroup();
 const subZone = new L.FeatureGroup();
+const link = new L.FeatureGroup();
 
 
 const drawnPolygons = L.featureGroup();
@@ -38,8 +39,9 @@ const drawnLines = L.featureGroup();
 drawnPolygons.addTo(map);
 drawnLines.addTo(map);
 
-const zoneUrl = 'http://api.zonesvc.techamus.co.uk/api/zones'
-const subZoneUrl = 'http://api.zonesvc.techamus.co.uk/api/subzones'
+const zoneUrl = 'http://api.zonesvc.techamus.co.uk/api/zones';
+const subZoneUrl = 'http://api.zonesvc.techamus.co.uk/api/subzones';
+const linkUrl = 'http://api.zonesvc.techamus.co.uk/api/ZoneLinks'
 
 
 let popupContent = document.querySelector("#popup-content");
@@ -53,12 +55,13 @@ let popupContent = document.querySelector("#popup-content");
 
 map.addLayer(zone);
 map.addLayer(subZone);
+map.addLayer(link);
 
 let editingLayer = zone;
 let editingLayerUrl = zoneUrl;
 
 let overLays = {
-    "Zone": zone, "Sub Zone": subZone,
+    "Zone": zone, "Sub Zone": subZone, Link: link
 }
 
 
@@ -122,7 +125,9 @@ function bindPropertyOnLayer(layer) {
         className: 'label-tooltip'
     });
     const name = layer.feature.properties.name || '';
-    layer.bindPopup(`
+    if (layer.featureGroup === 'zone') {
+
+        layer.bindPopup(`
                 <form onsubmit="return modifyAttribute(event)"
                  data-layer="${layer.featureGroup}" data-url="${layer.url}"
                  class="attribute-popup-content">
@@ -147,6 +152,31 @@ function bindPropertyOnLayer(layer) {
                     </div>
                 </form>
             `)
+    } else {
+        layer.bindPopup(`
+                <form onsubmit="return modifyAttribute(event)"
+                 data-layer="${layer.featureGroup}" data-url="${layer.url}"
+                 class="attribute-popup-content">
+                    <input readonly disabled value="${layer.feature.properties.id}" type="hidden" name="id">
+                    <div class="attribute-item">
+                        <label>Name</label>
+                        <input placeholder="Name" value="${name}" type="text" name="name">
+                    </div>
+                    <div class="attribute-item">
+                        <label>Color</label>
+                        <input  value="${color}" type="color" name="color">
+                        ${layer.featureGroup}
+                    </div>
+                    <div class="btn-container">
+                        <button data-layer="${layer.featureGroup}" data-url="${layer.url}"  
+                        type="button" onclick="deleteFeature(event, ${layer.feature.properties.id})" class="btn btn-red">Delete</button>
+                        <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
+                        type="button" onclick="splitFeature(event, ${layer.feature.properties.id})" class="btn btn-blue">Split</button>
+                        <button type="submit" class="btn btn-yellow">Save</button>
+                    </div>
+                </form>
+            `)
+    }
 }
 
 function bindPopupForSave(layer, cutPoly = false, parentZoneId = -1) {
@@ -357,58 +387,56 @@ function saveLink(evt) {
         "value": evt.target.elements.numVal.value
     }
 
-    fetch('http://api.zonesvc.techamus.co.uk/api/ZoneLinks', {
+    fetch(linkUrl, {
         method: 'POST', headers: {
             'Content-Type': 'application/json',
         }, body: JSON.stringify(body)
     }).then(res => res.json())
         .then(data => {
-            console.log(data);
             showPopup('Save Successfully')
-
         });
 }
 
 let swoopyLines = [];
 
 function linkFeature(evt, id) {
-    const layer = getFeatureById(id, editingLayer);
+    const layer = getFeatureById(id, zone);
 
-    let origin = layer.getBounds().getCenter();
 
     swoopyLines.forEach(line => {
         map.removeLayer(line);
     });
     swoopyLines = [];
 
-    editingLayer.getLayers().forEach(destination => {
+    zone.getLayers().forEach(destination => {
 
-        let directionalLine = L.polyline(
-            [origin, destination.getBounds().getCenter(),],
-            {color: destination.options.color, weight: 3.5})
-            .arrowheads({fill: true, color: destination.options.color, size: "2%", repeat: 30,})
-            .bindPopup(`<form onsubmit="return saveLink(event)"
-                 class="attribute-popup-content">
-                    <input readonly disabled value="${layer.feature.properties.id}" type="hidden" name="origin">
-                    <input readonly disabled value="${destination.feature.properties.id}" type="hidden" name="destination">
-                    <div style="font-size: 1.2rem; color: #000000"><strong>${layer.feature.properties.name}</strong> to <strong>${destination.feature.properties.name}</strong></div>
-                    <div class="attribute-item">
-                        <label>Number</label>
-                        <input placeholder="Number" min="0" maxlength="0.01" value="0" type="number" name="numVal">
-                    </div>
-       
-                    <div class="btn-container">
-                        <button type="submit" class="btn btn-yellow">Save</button>
-                    </div>
-                </form>`).addTo(map);
-
+        let directionalLine = drawDirectionalLine(layer, destination).addTo(map)
 
         swoopyLines.push(directionalLine);
 
 
     })
+}
 
-
+function drawDirectionalLine(origin, destination, value = 0) {
+    return L.polyline(
+        [origin.getBounds().getCenter(), destination.getBounds().getCenter(),],
+        {color: destination.options.color, weight: 3.5})
+        .arrowheads({fill: true, color: destination.options.color, size: "2%", repeat: 30,})
+        .bindPopup(`<form onsubmit="return saveLink(event)"
+                 class="attribute-popup-content">
+                    <input readonly disabled value="${origin.feature.properties.id}" type="hidden" name="origin">
+                    <input readonly disabled value="${destination.feature.properties.id}" type="hidden" name="destination">
+                    <div style="font-size: 1.2rem; color: #000000"><strong>${origin.feature.properties.name}</strong> to <strong>${destination.feature.properties.name}</strong></div>
+                    <div class="attribute-item">
+                        <label>Number</label>
+                        <input placeholder="Number" min="0" value="${value}" type="number" name="numVal">
+                    </div>
+       
+                    <div class="btn-container">
+                        <button type="submit" class="btn btn-yellow">Save</button>
+                    </div>
+                </form>`);
 }
 
 fetch(zoneUrl, {
@@ -422,9 +450,32 @@ fetch(zoneUrl, {
             let gJson = L.geoJSON(JSON.parse(d.geoJSON));
             const layer = gJson.getLayers()[0]
             layer.feature.properties.id = d.id;
-            addZonalLayer(zone, layer)
+            addZonalLayer(zone, layer);
 
         });
+
+        fetch(linkUrl, {
+            method: 'GET', headers: {
+                'Content-Type': 'application/json'
+            },
+        })
+            .then(res => res.json())
+            .then(data => {
+
+                data.forEach(each => {
+                    let a = each.parentZoneId;
+                    let b = each.linkedZoneId;
+                    let value = each.value;
+                    let aFes = getFeatureById(a, zone);
+                    let bFes = getFeatureById(b, zone);
+
+                    link.addLayer(drawDirectionalLine(aFes, bFes, value));
+
+                });
+
+
+
+            });
 
     });
 
