@@ -348,10 +348,31 @@ function splitFeature(evt, id) {
 
 }
 
+function saveLink(evt) {
+    evt.preventDefault();
+    evt.stopPropagation();
+    let body = {
+        "parentZoneId": evt.target.elements.origin.value,
+        "linkedZoneId": evt.target.elements.destination.value,
+        "value": evt.target.elements.numVal.value
+    }
+
+    fetch('http://api.zonesvc.techamus.co.uk/api/ZoneLinks', {
+        method: 'POST', headers: {
+            'Content-Type': 'application/json',
+        }, body: JSON.stringify(body)
+    }).then(res => res.json())
+        .then(data => {
+            console.log(data);
+            showPopup('Save Successfully')
+
+        });
+}
+
 let swoopyLines = [];
 
 function linkFeature(evt, id) {
-    const layer = getFeatureById(id, zone);
+    const layer = getFeatureById(id, editingLayer);
 
     let origin = layer.getBounds().getCenter();
 
@@ -360,28 +381,32 @@ function linkFeature(evt, id) {
     });
     swoopyLines = [];
 
-    zone.getLayers().forEach(destination => {
-        // console.log(destination.options.color);
-        let swoopy = L.swoopyArrow(origin, destination.getBounds().getCenter(), {
-            labelFontSize: 30,
-            iconAnchor: [20, 10],
-            iconSize: [5, 5],
-            factor: 0,
-            color: destination.options.color,
-            weight: 2,
-            arrowFilled: true
-        }).addTo(map);
-        // swoopy.bindTooltip('afda sdfa', {
-        //     permanent: true,
-        //     direction: "center",
-        //     opacity: 1,
-        //     className: 'label-tooltip'
-        // });
-        swoopy.bindPopup(`<div>fadfa fadsf daf</div>`)
+    editingLayer.getLayers().forEach(destination => {
 
-        swoopyLines.push(swoopy);
-        console.log(swoopy);
-    });
+        let directionalLine = L.polyline(
+            [origin, destination.getBounds().getCenter(),],
+            {color: destination.options.color, weight: 3.5})
+            .arrowheads({fill: true, color: destination.options.color, size: "2%", repeat: 30,})
+            .bindPopup(`<form onsubmit="return saveLink(event)"
+                 class="attribute-popup-content">
+                    <input readonly disabled value="${layer.feature.properties.id}" type="hidden" name="origin">
+                    <input readonly disabled value="${destination.feature.properties.id}" type="hidden" name="destination">
+                    <div style="font-size: 1.2rem; color: #000000"><strong>${layer.feature.properties.name}</strong> to <strong>${destination.feature.properties.name}</strong></div>
+                    <div class="attribute-item">
+                        <label>Number</label>
+                        <input placeholder="Number" min="0" maxlength="0.01" value="0" type="number" name="numVal">
+                    </div>
+       
+                    <div class="btn-container">
+                        <button type="submit" class="btn btn-yellow">Save</button>
+                    </div>
+                </form>`).addTo(map);
+
+
+        swoopyLines.push(directionalLine);
+
+
+    })
 
 
 }
@@ -715,7 +740,8 @@ map.on('zoomstart', function () {
     let zoomLevel = map.getZoom();
     let tooltips = document.querySelectorAll('.leaflet-tooltip');
     tooltips.forEach(tooltip => {
-        tooltip.style.fontSize = `${zoomLevel + 1}px`;
+        tooltip.style.fontSize = `${zoomLevel + 1}
+        px`;
     })
 
 });
