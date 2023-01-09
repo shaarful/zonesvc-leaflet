@@ -348,10 +348,17 @@ function splitFeature(evt, id) {
 
 }
 
+let swoopyLines = [];
+
 function linkFeature(evt, id) {
     const layer = getFeatureById(id, zone);
 
     let origin = layer.getBounds().getCenter();
+
+    swoopyLines.forEach(line => {
+        map.removeLayer(line);
+    });
+    swoopyLines = [];
 
     zone.getLayers().forEach(destination => {
         // console.log(destination.options.color);
@@ -371,6 +378,8 @@ function linkFeature(evt, id) {
         //     className: 'label-tooltip'
         // });
         swoopy.bindPopup(`<div>fadfa fadsf daf</div>`)
+
+        swoopyLines.push(swoopy);
         console.log(swoopy);
     });
 
