@@ -55,7 +55,7 @@ let popupContent = document.querySelector("#popup-content");
 
 map.addLayer(zone);
 map.addLayer(subZone);
-map.addLayer(link);
+// map.addLayer(link);
 
 let editingLayer = zone;
 let editingLayerUrl = zoneUrl;
@@ -125,9 +125,8 @@ function bindPropertyOnLayer(layer) {
         className: 'label-tooltip'
     });
     const name = layer.feature.properties.name || '';
-    if (layer.featureGroup === 'zone') {
 
-        layer.bindPopup(`
+    layer.bindPopup(`
                 <form onsubmit="return modifyAttribute(event)"
                  data-layer="${layer.featureGroup}" data-url="${layer.url}"
                  class="attribute-popup-content">
@@ -142,41 +141,71 @@ function bindPropertyOnLayer(layer) {
                         ${layer.featureGroup}
                     </div>
                     <div class="btn-container">
-                        <button data-layer="${layer.featureGroup}" data-url="${layer.url}"  
+                        <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
                         type="button" onclick="deleteFeature(event, ${layer.feature.properties.id})" class="btn btn-red">Delete</button>
                         <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
                         type="button" onclick="splitFeature(event, ${layer.feature.properties.id})" class="btn btn-blue">Split</button>
                         <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
-                        type="button" onclick="linkFeature(event, ${layer.feature.properties.id})" class="btn btn-green">Link</button>
+                        type="button" onclick="linkFeature(event, ${layer.feature.properties.id}, '${layer.featureGroup}')" class="btn btn-green">Link</button>
                         <button type="submit" class="btn btn-yellow">Save</button>
                     </div>
                 </form>
             `)
-    } else {
-        layer.bindPopup(`
-                <form onsubmit="return modifyAttribute(event)"
-                 data-layer="${layer.featureGroup}" data-url="${layer.url}"
-                 class="attribute-popup-content">
-                    <input readonly disabled value="${layer.feature.properties.id}" type="hidden" name="id">
-                    <div class="attribute-item">
-                        <label>Name</label>
-                        <input placeholder="Name" value="${name}" type="text" name="name">
-                    </div>
-                    <div class="attribute-item">
-                        <label>Color</label>
-                        <input  value="${color}" type="color" name="color">
-                        ${layer.featureGroup}
-                    </div>
-                    <div class="btn-container">
-                        <button data-layer="${layer.featureGroup}" data-url="${layer.url}"  
-                        type="button" onclick="deleteFeature(event, ${layer.feature.properties.id})" class="btn btn-red">Delete</button>
-                        <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
-                        type="button" onclick="splitFeature(event, ${layer.feature.properties.id})" class="btn btn-blue">Split</button>
-                        <button type="submit" class="btn btn-yellow">Save</button>
-                    </div>
-                </form>
-            `)
-    }
+
+    // if (layer.featureGroup === 'zone') {
+    //
+    //     layer.bindPopup(`
+    //             <form onsubmit="return modifyAttribute(event)"
+    //              data-layer="${layer.featureGroup}" data-url="${layer.url}"
+    //              class="attribute-popup-content">
+    //                 <input readonly disabled value="${layer.feature.properties.id}" type="hidden" name="id">
+    //                 <div class="attribute-item">
+    //                     <label>Name</label>
+    //                     <input placeholder="Name" value="${name}" type="text" name="name">
+    //                 </div>
+    //                 <div class="attribute-item">
+    //                     <label>Color</label>
+    //                     <input  value="${color}" type="color" name="color">
+    //                     ${layer.featureGroup}
+    //                 </div>
+    //                 <div class="btn-container">
+    //                     <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
+    //                     type="button" onclick="deleteFeature(event, ${layer.feature.properties.id})" class="btn btn-red">Delete</button>
+    //                     <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
+    //                     type="button" onclick="splitFeature(event, ${layer.feature.properties.id})" class="btn btn-blue">Split</button>
+    //                     <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
+    //                     type="button" onclick="linkFeature(event, ${layer.feature.properties.id})" class="btn btn-green">Link</button>
+    //                     <button type="submit" class="btn btn-yellow">Save</button>
+    //                 </div>
+    //             </form>
+    //         `)
+    // } else {
+    //     layer.bindPopup(`
+    //             <form onsubmit="return modifyAttribute(event)"
+    //              data-layer="${layer.featureGroup}" data-url="${layer.url}"
+    //              class="attribute-popup-content">
+    //                 <input readonly disabled value="${layer.feature.properties.id}" type="hidden" name="id">
+    //                 <div class="attribute-item">
+    //                     <label>Name</label>
+    //                     <input placeholder="Name" value="${name}" type="text" name="name">
+    //                 </div>
+    //                 <div class="attribute-item">
+    //                     <label>Color</label>
+    //                     <input  value="${color}" type="color" name="color">
+    //                     ${layer.featureGroup}
+    //                 </div>
+    //                 <div class="btn-container">
+    //                     <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
+    //                     type="button" onclick="deleteFeature(event, ${layer.feature.properties.id})" class="btn btn-red">Delete</button>
+    //                     <button data-layer="${layer.featureGroup}" data-url="${layer.url}"
+    //                     type="button" onclick="splitFeature(event, ${layer.feature.properties.id})" class="btn btn-blue">Split</button>
+    //                     <button type="submit" class="btn btn-yellow">Save</button>
+    //                 </div>
+    //             </form>
+    //         `)
+    // }
+
+
 }
 
 function bindPopupForSave(layer, cutPoly = false, parentZoneId = -1) {
@@ -384,6 +413,8 @@ function saveLink(evt) {
     let body = {
         "parentZoneId": evt.target.elements.origin.value,
         "linkedZoneId": evt.target.elements.destination.value,
+        "parentZoneIsSubZone": evt.target.elements.parentZoneIsSubZone.value,
+        "linkedZoneIsSubZone": evt.target.elements.linkedZoneIsSubZone.value,
         "value": evt.target.elements.numVal.value
     }
 
@@ -399,8 +430,18 @@ function saveLink(evt) {
 
 let swoopyLines = [];
 
-function linkFeature(evt, id) {
-    const layer = getFeatureById(id, zone);
+function linkFeature(evt, id, featureGroup) {
+
+    let lyr;
+    if (featureGroup === 'zone') {
+        lyr = zone;
+
+    } else if (featureGroup === 'subzone') {
+        lyr = subZone;
+    }
+
+
+    const layer = getFeatureById(id, lyr);
 
 
     swoopyLines.forEach(line => {
@@ -409,35 +450,121 @@ function linkFeature(evt, id) {
     swoopyLines = [];
 
     zone.getLayers().forEach(destination => {
-
-        let directionalLine = drawDirectionalLine(layer, destination).addTo(map)
-
-        swoopyLines.push(directionalLine);
-
-
-    })
+        createFg(layer, destination).addTo(map);
+    });
+    subZone.getLayers().forEach(destination => {
+        createFg(layer, destination).addTo(map);
+    });
 }
 
-function drawDirectionalLine(origin, destination, value = 0) {
-    return L.polyline(
-        [origin.getBounds().getCenter(), destination.getBounds().getCenter(),],
-        {color: destination.options.color, weight: 3.5})
-        .arrowheads({fill: true, color: destination.options.color, size: "2%", repeat: 30,})
+function createFg(layer, destination, value = 0) {
+    let parentZoneIsSubZone = false,
+        linkedZoneIsSubZone = false;
+
+    if (destination.featureGroup == 'subzone') {
+        linkedZoneIsSubZone = true;
+    }
+    if (layer.featureGroup == 'subzone') {
+        parentZoneIsSubZone = true;
+    }
+
+
+    let directionalLine = drawDirectionalLine(layer, destination);
+
+    let da = drawArrowheads(directionalLine);
+    let fg = L.featureGroup([directionalLine, da])
         .bindPopup(`<form onsubmit="return saveLink(event)"
                  class="attribute-popup-content">
-                    <input readonly disabled value="${origin.feature.properties.id}" type="hidden" name="origin">
+                    <input readonly disabled value="${layer.feature.properties.id}" type="hidden" name="origin">
                     <input readonly disabled value="${destination.feature.properties.id}" type="hidden" name="destination">
-                    <div style="font-size: 1.2rem; color: #000000"><strong>${origin.feature.properties.name}</strong> to <strong>${destination.feature.properties.name}</strong></div>
+                    <input readonly disabled value="${linkedZoneIsSubZone}" type="hidden" name="linkedZoneIsSubZone">
+                    <input readonly disabled value="${parentZoneIsSubZone}" type="hidden" name="parentZoneIsSubZone">
+                    <div style="font-size: 1.2rem; color: #000000"><strong>${layer.feature.properties.name}</strong> to <strong>${destination.feature.properties.name}</strong></div>
                     <div class="attribute-item">
                         <label>Number</label>
                         <input placeholder="Number" min="0" value="${value}" type="number" name="numVal">
                     </div>
-       
+
                     <div class="btn-container">
                         <button type="submit" class="btn btn-yellow">Save</button>
                     </div>
-                </form>`);
+                </form>`)
+    swoopyLines.push(fg);
+    return fg
 }
+
+function drawDirectionalLine(origin, destination, value = 0) {
+    // return L.polyline(
+    //     [origin.getBounds().getCenter(), destination.getBounds().getCenter(),],
+    //     {color: destination.options.color, weight: 3.5})
+    //     .arrowheads({fill: true, color: destination.options.color, size: "2%", repeat: 30,})
+    //     .bindPopup(`<form onsubmit="return saveLink(event)"
+    //              class="attribute-popup-content">
+    //                 <input readonly disabled value="${origin.feature.properties.id}" type="hidden" name="origin">
+    //                 <input readonly disabled value="${destination.feature.properties.id}" type="hidden" name="destination">
+    //                 <div style="font-size: 1.2rem; color: #000000"><strong>${origin.feature.properties.name}</strong> to <strong>${destination.feature.properties.name}</strong></div>
+    //                 <div class="attribute-item">
+    //                     <label>Number</label>
+    //                     <input placeholder="Number" min="0" value="${value}" type="number" name="numVal">
+    //                 </div>
+    //
+    //                 <div class="btn-container">
+    //                     <button type="submit" class="btn btn-yellow">Save</button>
+    //                 </div>
+    //             </form>`);
+
+
+    let latlngs = [];
+    let ori = origin.getBounds().getCenter();
+    let latlng1 = [ori.lat, ori.lng],
+        dest = destination.getBounds().getCenter(),
+        latlng2 = [dest.lat, dest.lng];
+
+    let offsetX = latlng2[1] - latlng1[1],
+        offsetY = latlng2[0] - latlng1[0];
+
+    let r = Math.sqrt(Math.pow(offsetX, 2) + Math.pow(offsetY, 2)),
+        theta = Math.atan2(offsetY, offsetX);
+
+    let thetaOffset = (3.14 / 10);
+
+    let r2 = (r / 2) / (Math.cos(thetaOffset)),
+        theta2 = theta + thetaOffset;
+
+    let midpointX = (r2 * Math.cos(theta2)) + latlng1[1],
+        midpointY = (r2 * Math.sin(theta2)) + latlng1[0];
+
+    let midpointLatLng = [midpointY, midpointX];
+
+    latlngs.push(latlng1, midpointLatLng, latlng2);
+
+    let pathOptions = {
+        color: destination.options.color, weight: 3.5
+    }
+
+    return L.curve(
+        [
+            'M', latlng1,
+            'Q', midpointLatLng,
+            latlng2
+        ], pathOptions);
+
+}
+
+const drawArrowheads = (curvedPath) => {
+
+    curvedPath.addTo(map);
+    let latlngsTrace = curvedPath.trace([0, .5, 1]);
+    curvedPath.remove();
+
+    const ghost = L.polyline(latlngsTrace)
+        // .arrowheads({color: "orange", size: "15000m"})
+        .arrowheads({fill: true, color: curvedPath.options.color, size: "2%",})
+        .addTo(map);
+    let arrowheads = ghost.getArrowheads();
+    ghost.remove();
+    return arrowheads;
+};
 
 fetch(zoneUrl, {
     method: 'GET', headers: {
@@ -463,16 +590,30 @@ fetch(zoneUrl, {
             .then(data => {
 
                 data.forEach(each => {
-                    let a = each.parentZoneId;
-                    let b = each.linkedZoneId;
-                    let value = each.value;
-                    let aFes = getFeatureById(a, zone);
-                    let bFes = getFeatureById(b, zone);
+                    let a = each.parentZoneId,
+                        b = each.linkedZoneId,
+                        parentZoneIsSubZone = each.parentZoneIsSubZone,
+                        linkedZoneIsSubZone = each.linkedZoneIsSubZone,
+                        value = each.value;
 
-                    link.addLayer(drawDirectionalLine(aFes, bFes, value));
+                    let aLyr = zone,
+                        bLyr = zone;
+                    if (parentZoneIsSubZone === 'true') {
+                        aLyr = subZone;
+                    }
+                    if (linkedZoneIsSubZone === 'true') {
+                        bLyr = subZone;
+                    }
+                    let aFes = getFeatureById(a, aLyr),
+                        bFes = getFeatureById(b, bLyr);
+
+                    if (aFes && bFes) {
+
+                        link.addLayer(createFg(aFes, bFes, value));
+                    }
+
 
                 });
-
 
 
             });
