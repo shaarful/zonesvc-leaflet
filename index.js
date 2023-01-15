@@ -31,7 +31,7 @@ let baseLayers = {
 
 const zone = new L.FeatureGroup();
 const subZone = new L.FeatureGroup();
-const link = new L.FeatureGroup();
+// const link = new L.FeatureGroup();
 
 
 const drawnPolygons = L.featureGroup();
@@ -61,7 +61,7 @@ let editingLayer = zone;
 let editingLayerUrl = zoneUrl;
 
 let overLays = {
-    "Zone": zone, "Sub Zone": subZone, Link: link
+    "Zone": zone, "Sub Zone": subZone,
 }
 
 
@@ -410,6 +410,7 @@ function splitFeature(evt, id) {
 function saveLink(evt) {
     evt.preventDefault();
     evt.stopPropagation();
+    const linkId = evt.target.elements.linkId.value;
     let body = {
         "parentZoneId": evt.target.elements.origin.value,
         "linkedZoneId": evt.target.elements.destination.value,
@@ -418,46 +419,132 @@ function saveLink(evt) {
         "value": evt.target.elements.numVal.value
     }
 
-    fetch(linkUrl, {
-        method: 'POST', headers: {
-            'Content-Type': 'application/json',
-        }, body: JSON.stringify(body)
-    }).then(res => res.json())
-        .then(data => {
+    if (linkId != 'undefined') {
+        body.id = linkId;
+        fetch(linkUrl + "/" + linkId, {
+            method: 'PUT', headers: {
+                'Content-Type': 'application/json',
+            }, body: JSON.stringify(body)
+        }).then(data => {
             showPopup('Save Successfully')
         });
+    } else {
+        fetch(linkUrl, {
+            method: 'POST', headers: {
+                'Content-Type': 'application/json',
+            }, body: JSON.stringify(body)
+        }).then(res => res.json())
+            .then(data => {
+                showPopup('Save Successfully')
+            });
+    }
+
+
 }
 
 let swoopyLines = [];
 
 function linkFeature(evt, id, featureGroup) {
 
-    let lyr;
-    if (featureGroup === 'zone') {
-        lyr = zone;
+    fetch(linkUrl, {
+        method: 'GET', headers: {
+            'Content-Type': 'application/json'
+        },
+    })
+        .then(res => res.json())
+        .then(links => {
 
-    } else if (featureGroup === 'subzone') {
-        lyr = subZone;
-    }
+            // data.forEach(each => {
+            //     let a = each.parentZoneId,
+            //         b = each.linkedZoneId,
+            //         parentZoneIsSubZone = each.parentZoneIsSubZone,
+            //         linkedZoneIsSubZone = each.linkedZoneIsSubZone,
+            //         value = each.value;
+            //
+            //     let aLyr = zone,
+            //         bLyr = zone;
+            //     if (parentZoneIsSubZone === 'true') {
+            //         aLyr = subZone;
+            //     }
+            //     if (linkedZoneIsSubZone === 'true') {
+            //         bLyr = subZone;
+            //     }
+            //     let aFes = getFeatureById(a, aLyr),
+            //         bFes = getFeatureById(b, bLyr);
+            //
+            //     if (aFes && bFes) {
+            //
+            //         link.addLayer(createFg(aFes, bFes, value));
+            //     }
+            //
+            //
+            // });
 
 
-    const layer = getFeatureById(id, lyr);
+            let lyr;
+            if (featureGroup === 'zone') {
+                lyr = zone;
+
+            } else if (featureGroup === 'subzone') {
+                lyr = subZone;
+            }
 
 
-    swoopyLines.forEach(line => {
-        map.removeLayer(line);
-    });
-    swoopyLines = [];
+            const layer = getFeatureById(id, lyr);
 
-    zone.getLayers().forEach(destination => {
-        createFg(layer, destination).addTo(map);
-    });
-    subZone.getLayers().forEach(destination => {
-        createFg(layer, destination).addTo(map);
-    });
+
+            swoopyLines.forEach(line => {
+                map.removeLayer(line);
+            });
+            swoopyLines = [];
+
+            zone.getLayers().forEach(destination => {
+                const destId = destination.feature.properties.id;
+                const savedLink = links.find(link => {
+
+                    if (link.parentZoneId == id &&
+                        link.linkedZoneId == destId &&
+                        link.linkedZoneIsSubZone == 'false') {
+                        if ((link.parentZoneIsSubZone == 'false' && lyr === zone) || (link.parentZoneIsSubZone == 'true' && lyr === subZone)) {
+                            return true;
+                        }
+                    }
+                });
+
+                let val = 0, linkId;
+                if (savedLink) {
+                    val = savedLink.value
+                    linkId = savedLink.id
+                }
+                createFg(layer, destination, val, linkId).addTo(map);
+            });
+
+            subZone.getLayers().forEach(destination => {
+                const destId = destination.feature.properties.id;
+                const savedLink = links.find(link => {
+                    if (link.parentZoneId == id &&
+                        link.linkedZoneId == destId &&
+                        link.linkedZoneIsSubZone == 'true') {
+
+                        if ((link.parentZoneIsSubZone == 'false' && lyr === zone) || (link.parentZoneIsSubZone == 'true' && lyr === subZone)) {
+                            return true;
+                        }
+                    }
+                });
+                let val = 0, linkId;
+                if (savedLink) {
+                    val = savedLink.value
+                    linkId = savedLink.id
+                }
+                createFg(layer, destination, val, linkId).addTo(map);
+            });
+
+
+        });
+
 }
 
-function createFg(layer, destination, value = 0) {
+function createFg(layer, destination, value = 0, linkId) {
     let parentZoneIsSubZone = false,
         linkedZoneIsSubZone = false;
 
@@ -469,12 +556,16 @@ function createFg(layer, destination, value = 0) {
     }
 
 
-    let directionalLine = drawDirectionalLine(layer, destination);
+    let directionalLine = drawDirectionalLine(layer, destination, value);
 
-    let da = drawArrowheads(directionalLine);
-    let fg = L.featureGroup([directionalLine, da])
+    // let da = drawArrowheads(directionalLine);
+    // let fg = L.featureGroup([directionalLine, da])
+
+
+    let fg = directionalLine
         .bindPopup(`<form onsubmit="return saveLink(event)"
                  class="attribute-popup-content">
+                    <input readonly disabled value="${linkId}" type="hidden" name="linkId">
                     <input readonly disabled value="${layer.feature.properties.id}" type="hidden" name="origin">
                     <input readonly disabled value="${destination.feature.properties.id}" type="hidden" name="destination">
                     <input readonly disabled value="${linkedZoneIsSubZone}" type="hidden" name="linkedZoneIsSubZone">
@@ -484,7 +575,6 @@ function createFg(layer, destination, value = 0) {
                         <label>Number</label>
                         <input placeholder="Number" min="0" value="${value}" type="number" name="numVal">
                     </div>
-
                     <div class="btn-container">
                         <button type="submit" class="btn btn-yellow">Save</button>
                     </div>
@@ -492,6 +582,7 @@ function createFg(layer, destination, value = 0) {
     swoopyLines.push(fg);
     return fg
 }
+
 
 function drawDirectionalLine(origin, destination, value = 0) {
     // return L.polyline(
@@ -539,16 +630,33 @@ function drawDirectionalLine(origin, destination, value = 0) {
     latlngs.push(latlng1, midpointLatLng, latlng2);
 
     let pathOptions = {
-        color: destination.options.color, weight: 3.5
+        color: destination.options.color, weight: 5
     }
 
-    return L.curve(
+    let arrowHeadCoords = [
+        midpointLatLng,
+        latlng2
+    ];
+
+    let da = L.polyline(arrowHeadCoords, {opacity: 0})
+        .arrowheads({fill: true, color: destination.options.color, size: "2%",})
+
+    value = value || '0';
+    let dl = L.marker(latlng2, {opacity: 0})
+        .bindTooltip(value, {
+            permanent: true,
+            direction: "center",
+            opacity: 1,
+            className: 'label-tooltip'
+        })
+
+    let dc = L.curve(
         [
             'M', latlng1,
             'Q', midpointLatLng,
             latlng2
         ], pathOptions);
-
+    return L.featureGroup([dc, da, dl])
 }
 
 const drawArrowheads = (curvedPath) => {
@@ -580,43 +688,6 @@ fetch(zoneUrl, {
             addZonalLayer(zone, layer);
 
         });
-
-        fetch(linkUrl, {
-            method: 'GET', headers: {
-                'Content-Type': 'application/json'
-            },
-        })
-            .then(res => res.json())
-            .then(data => {
-
-                data.forEach(each => {
-                    let a = each.parentZoneId,
-                        b = each.linkedZoneId,
-                        parentZoneIsSubZone = each.parentZoneIsSubZone,
-                        linkedZoneIsSubZone = each.linkedZoneIsSubZone,
-                        value = each.value;
-
-                    let aLyr = zone,
-                        bLyr = zone;
-                    if (parentZoneIsSubZone === 'true') {
-                        aLyr = subZone;
-                    }
-                    if (linkedZoneIsSubZone === 'true') {
-                        bLyr = subZone;
-                    }
-                    let aFes = getFeatureById(a, aLyr),
-                        bFes = getFeatureById(b, bLyr);
-
-                    if (aFes && bFes) {
-
-                        link.addLayer(createFg(aFes, bFes, value));
-                    }
-
-
-                });
-
-
-            });
 
     });
 
